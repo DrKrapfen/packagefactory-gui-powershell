@@ -297,7 +297,9 @@ process {
                 "Microsoft.Graph.Authentication",
                 "Microsoft.Graph.Intune",
                 "IntuneWin32App",
-                "PSAppDeployToolkit"
+                "Evergreen",
+                "VcRedist",
+                "MSAL.PS"
             )
             
             foreach ($module in $requiredModules) {
@@ -384,7 +386,7 @@ process {
         $statusLabel.Text = "Ready"
         $statusLabel.ForeColor = [System.Drawing.Color]::Green
         $statusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-        $statusLabel.Font = New-Object System.Drawing.Font("Microsoft Sans Serif", 10, [System.Drawing.FontStyle]::Bold)</parameter>
+        $statusLabel.Font = New-Object System.Drawing.Font("Microsoft Sans Serif", 10, [System.Drawing.FontStyle]::Bold)
         
         # Add button click handler
         $runButton.Add_Click({
