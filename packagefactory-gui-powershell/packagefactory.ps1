@@ -25,7 +25,7 @@ begin {
     
     # Constants
     $FORM_WIDTH = 420
-    $FORM_HEIGHT = 280
+    $FORM_HEIGHT = 380
     $CONTROL_WIDTH = 360
     $LABEL_HEIGHT = 20
     $CONTROL_HEIGHT = 20
@@ -250,6 +250,76 @@ process {
         }
     }
     
+    function Invoke-GitPull {
+        param([string]$PackageFactoryRoot)
+        
+        try {
+            $currentLocation = $(Join-Path -Path $(Get-Location) -ChildPath "packagefactory")
+            Write-Msg -Msg $currentLocation
+            Set-Location -Path $PackageFactoryRoot
+            
+            # Check if git is available
+            if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+                throw "Git is not installed or not in PATH"
+            }
+            
+            # Check if directory is a git repository
+            if (-not (Test-Path -Path ".github" -PathType Container)) {
+                throw "Directory is not a git repository"
+            }
+            
+            Write-Msg -Msg "Updating applications via git pull..."
+            $result = & git pull origin main 2>&1
+            
+            if ($LASTEXITCODE -ne 0) {
+                throw "Git pull failed: $result"
+            }
+            
+            Write-Msg -Msg "Git pull completed successfully: $result"
+        }
+        catch {
+            Write-Error "Git pull failed: $_"
+            throw
+        }
+        finally {
+            Set-Location -Path $currentLocation
+        }
+    }
+    
+    function Install-Dependencies {
+        param([string]$PackageFactoryRoot)
+        
+        try {
+            Write-Msg -Msg "Installing PowerShell dependencies..."
+            
+            # Required modules for PackageFactory
+            $requiredModules = @(
+                "Microsoft.Graph.Authentication",
+                "Microsoft.Graph.Intune",
+                "IntuneWin32App",
+                "PSAppDeployToolkit"
+            )
+            
+            foreach ($module in $requiredModules) {
+                Write-Msg -Msg "Checking module: $module"
+                
+                $installedModule = Get-Module -Name $module -ListAvailable -ErrorAction SilentlyContinue
+                if (-not $installedModule) {
+                    Write-Msg -Msg "Installing module: $module"
+                    Install-Module -Name $module -Force -Scope CurrentUser -ErrorAction Stop
+                } else {
+                    Write-Msg -Msg "Module $module is already installed"
+                }
+            }
+            
+            Write-Msg -Msg "All dependencies installed successfully"
+        }
+        catch {
+            Write-Error "Dependency installation failed: $_"
+            throw
+        }
+    }
+    
     # Main execution
     try {
         # Load configuration
@@ -278,16 +348,31 @@ process {
         $tenantComboBox = New-LabelAndControl -Form $form -LabelText 'Customer' -Items $config.Tenants -Top 20 -IsComboBox $true
         $appComboBox = New-LabelAndControl -Form $form -LabelText 'Application' -Items $applicationList -Top 70 -IsComboBox $true
         
-        # Create run button
+        # Create utility buttons
+        $buttonWidth = ($CONTROL_WIDTH - 10) / 2
+        
+        $gitPullButton = New-Object System.Windows.Forms.Button
+        $gitPullButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 130)
+        $gitPullButton.Size = New-Object System.Drawing.Size($buttonWidth, 30)
+        $gitPullButton.Text = 'Update Apps (Git Pull)'
+        $gitPullButton.UseVisualStyleBackColor = $true
+        
+        $installDepsButton = New-Object System.Windows.Forms.Button
+        $installDepsButton.Location = New-Object System.Drawing.Point(($LEFT_MARGIN + $buttonWidth + 10), 130)
+        $installDepsButton.Size = New-Object System.Drawing.Size($buttonWidth, 30)
+        $installDepsButton.Text = 'Install Dependencies'
+        $installDepsButton.UseVisualStyleBackColor = $true
+        
+        # Create main run button
         $runButton = New-Object System.Windows.Forms.Button
-        $runButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, ($FORM_HEIGHT - 140))
+        $runButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 170)
         $runButton.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 40)
         $runButton.Text = 'Create Package'
         $runButton.UseVisualStyleBackColor = $true
         
         # Create status label
         $statusLabel = New-Object System.Windows.Forms.Label
-        $statusLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, ($FORM_HEIGHT - 90))
+        $statusLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 220)
         $statusLabel.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 30)
         $statusLabel.Text = "Ready"
         $statusLabel.ForeColor = [System.Drawing.Color]::Green
@@ -338,7 +423,62 @@ process {
             }
         })
         
+        # Add git pull button handler
+        $gitPullButton.Add_Click({
+            try {
+                $statusLabel.Text = "Updating applications..."
+                $statusLabel.ForeColor = [System.Drawing.Color]::Blue
+                $form.Refresh()
+                
+                Invoke-GitPull -PackageFactoryRoot $config.Paths.PackageFactoryRoot
+                
+                # Refresh application list after update
+                $applicationList = Get-ApplicationList -PackagesPath $config.Paths.PackagesPath -Type $config.DefaultType
+                $appComboBox.Items.Clear()
+                $appComboBox.Items.AddRange($applicationList)
+                
+                $statusLabel.Text = "Applications updated successfully"
+                $statusLabel.ForeColor = [System.Drawing.Color]::Green
+                
+                [System.Windows.Forms.MessageBox]::Show("Applications updated successfully!", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            }
+            catch {
+                $errorMessage = $_.Exception.Message
+                Write-Error "Git pull failed: $errorMessage"
+                $statusLabel.Text = "Error: $errorMessage"
+                $statusLabel.ForeColor = [System.Drawing.Color]::Red
+                
+                [System.Windows.Forms.MessageBox]::Show("Git pull failed: $errorMessage", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        })
+        
+        # Add install dependencies button handler
+        $installDepsButton.Add_Click({
+            try {
+                $statusLabel.Text = "Installing dependencies..."
+                $statusLabel.ForeColor = [System.Drawing.Color]::Blue
+                $form.Refresh()
+                
+                Install-Dependencies -PackageFactoryRoot $config.Paths.PackageFactoryRoot
+                
+                $statusLabel.Text = "Dependencies installed successfully"
+                $statusLabel.ForeColor = [System.Drawing.Color]::Green
+                
+                [System.Windows.Forms.MessageBox]::Show("Dependencies installed successfully!", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            }
+            catch {
+                $errorMessage = $_.Exception.Message
+                Write-Error "Dependency installation failed: $errorMessage"
+                $statusLabel.Text = "Error: $errorMessage"
+                $statusLabel.ForeColor = [System.Drawing.Color]::Red
+                
+                [System.Windows.Forms.MessageBox]::Show("Dependency installation failed: $errorMessage", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        })
+        
         # Add controls to form
+        $form.Controls.Add($gitPullButton)
+        $form.Controls.Add($installDepsButton)
         $form.Controls.Add($runButton)
         $form.Controls.Add($statusLabel)
         
