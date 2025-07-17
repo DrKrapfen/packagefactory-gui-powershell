@@ -30,7 +30,7 @@ begin {
     $LABEL_HEIGHT = 20
     $CONTROL_HEIGHT = 20
     $VERTICAL_SPACING = 50
-    $MARGIN = 10
+    $LEFT_MARGIN = ($FORM_WIDTH - $CONTROL_WIDTH) / 2
 }
 
 process {
@@ -160,7 +160,7 @@ process {
         
         # Create label
         $label = New-Object System.Windows.Forms.Label
-        $label.Location = New-Object System.Drawing.Point($MARGIN, $Top)
+        $label.Location = New-Object System.Drawing.Point($LEFT_MARGIN, $Top)
         $label.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, $LABEL_HEIGHT)
         $label.Text = "$LabelText :"
         $Form.Controls.Add($label)
@@ -168,7 +168,7 @@ process {
         # Create control
         if ($IsComboBox) {
             $control = New-Object System.Windows.Forms.ComboBox
-            $control.Location = New-Object System.Drawing.Point($MARGIN, ($Top + $LABEL_HEIGHT))
+            $control.Location = New-Object System.Drawing.Point($LEFT_MARGIN, ($Top + $LABEL_HEIGHT))
             $control.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, $CONTROL_HEIGHT)
             $control.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
             $control.DropDownHeight = 100
@@ -186,7 +186,7 @@ process {
             }
         } else {
             $control = New-Object System.Windows.Forms.TextBox
-            $control.Location = New-Object System.Drawing.Point($MARGIN, ($Top + $LABEL_HEIGHT))
+            $control.Location = New-Object System.Drawing.Point($LEFT_MARGIN, ($Top + $LABEL_HEIGHT))
             $control.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, $CONTROL_HEIGHT)
             $control.Text = $Items
         }
@@ -280,17 +280,19 @@ process {
         
         # Create run button
         $runButton = New-Object System.Windows.Forms.Button
-        $runButton.Location = New-Object System.Drawing.Point($MARGIN, ($FORM_HEIGHT - 120))
+        $runButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, ($FORM_HEIGHT - 140))
         $runButton.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 40)
         $runButton.Text = 'Create Package'
         $runButton.UseVisualStyleBackColor = $true
         
         # Create status label
         $statusLabel = New-Object System.Windows.Forms.Label
-        $statusLabel.Location = New-Object System.Drawing.Point($MARGIN, ($FORM_HEIGHT - 75))
-        $statusLabel.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 20)
+        $statusLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, ($FORM_HEIGHT - 90))
+        $statusLabel.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 30)
         $statusLabel.Text = "Ready"
         $statusLabel.ForeColor = [System.Drawing.Color]::Green
+        $statusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+        $statusLabel.Font = New-Object System.Drawing.Font("Microsoft Sans Serif", 10, [System.Drawing.FontStyle]::Bold)
         
         # Add button click handler
         $runButton.Add_Click({
