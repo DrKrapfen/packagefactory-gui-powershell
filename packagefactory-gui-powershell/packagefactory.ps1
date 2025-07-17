@@ -25,11 +25,11 @@ begin {
     
     # Constants
     $FORM_WIDTH = 420
-    $FORM_HEIGHT = 380
+    $FORM_HEIGHT = 400
     $CONTROL_WIDTH = 360
     $LABEL_HEIGHT = 20
     $CONTROL_HEIGHT = 20
-    $VERTICAL_SPACING = 50
+    $VERTICAL_SPACING = 60
     $LEFT_MARGIN = ($FORM_WIDTH - $CONTROL_WIDTH) / 2
 }
 
@@ -345,39 +345,46 @@ process {
         $form.MinimizeBox = $false
         
         # Create controls
-        $tenantComboBox = New-LabelAndControl -Form $form -LabelText 'Customer' -Items $config.Tenants -Top 20 -IsComboBox $true
-        $appComboBox = New-LabelAndControl -Form $form -LabelText 'Application' -Items $applicationList -Top 70 -IsComboBox $true
-        
-        # Create utility buttons
+        # Create navbar with utility buttons
         $buttonWidth = ($CONTROL_WIDTH - 10) / 2
         
         $gitPullButton = New-Object System.Windows.Forms.Button
-        $gitPullButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 130)
+        $gitPullButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 10)
         $gitPullButton.Size = New-Object System.Drawing.Size($buttonWidth, 30)
         $gitPullButton.Text = 'Update Apps (Git Pull)'
         $gitPullButton.UseVisualStyleBackColor = $true
         
         $installDepsButton = New-Object System.Windows.Forms.Button
-        $installDepsButton.Location = New-Object System.Drawing.Point(($LEFT_MARGIN + $buttonWidth + 10), 130)
+        $installDepsButton.Location = New-Object System.Drawing.Point(($LEFT_MARGIN + $buttonWidth + 10), 10)
         $installDepsButton.Size = New-Object System.Drawing.Size($buttonWidth, 30)
         $installDepsButton.Text = 'Install Dependencies'
         $installDepsButton.UseVisualStyleBackColor = $true
         
+        # Add separator line
+        $separator = New-Object System.Windows.Forms.Label
+        $separator.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 50)
+        $separator.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 2)
+        $separator.BackColor = [System.Drawing.Color]::LightGray
+        
+        # Main workflow controls
+        $tenantComboBox = New-LabelAndControl -Form $form -LabelText 'Customer' -Items $config.Tenants -Top 70 -IsComboBox $true
+        $appComboBox = New-LabelAndControl -Form $form -LabelText 'Application' -Items $applicationList -Top 140 -IsComboBox $true
+        
         # Create main run button
         $runButton = New-Object System.Windows.Forms.Button
-        $runButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 170)
+        $runButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 210)
         $runButton.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 40)
         $runButton.Text = 'Create Package'
         $runButton.UseVisualStyleBackColor = $true
         
         # Create status label
         $statusLabel = New-Object System.Windows.Forms.Label
-        $statusLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 220)
+        $statusLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 260)
         $statusLabel.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 30)
         $statusLabel.Text = "Ready"
         $statusLabel.ForeColor = [System.Drawing.Color]::Green
         $statusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-        $statusLabel.Font = New-Object System.Drawing.Font("Microsoft Sans Serif", 10, [System.Drawing.FontStyle]::Bold)
+        $statusLabel.Font = New-Object System.Drawing.Font("Microsoft Sans Serif", 10, [System.Drawing.FontStyle]::Bold)</parameter>
         
         # Add button click handler
         $runButton.Add_Click({
@@ -479,6 +486,7 @@ process {
         # Add controls to form
         $form.Controls.Add($gitPullButton)
         $form.Controls.Add($installDepsButton)
+        $form.Controls.Add($separator)
         $form.Controls.Add($runButton)
         $form.Controls.Add($statusLabel)
         
