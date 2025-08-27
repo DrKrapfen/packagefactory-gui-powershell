@@ -408,7 +408,7 @@ process {
         
         # Create Clear All button for applications
         $clearAllButton = New-Object System.Windows.Forms.Button
-        $clearAllButton.Location = New-Object System.Drawing.Point(($LEFT_MARGIN + 270), 135)
+        $clearAllButton.Location = New-Object System.Drawing.Point(($LEFT_MARGIN + 260), 135)
         $clearAllButton.Size = New-Object System.Drawing.Size(100, 25)
         $clearAllButton.Text = 'Clear All'
         $clearAllButton.UseVisualStyleBackColor = $true
@@ -420,14 +420,14 @@ process {
         
         # Create main run button
         $runButton = New-Object System.Windows.Forms.Button
-        $runButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 340)
+        $runButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 320)
         $runButton.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 40)
         $runButton.Text = 'Create Package(s)'
         $runButton.UseVisualStyleBackColor = $true
         
         # Create status label
         $statusLabel = New-Object System.Windows.Forms.Label
-        $statusLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 390)
+        $statusLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 370)
         $statusLabel.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 30)
         $statusLabel.Text = "Ready"
         $statusLabel.ForeColor = [System.Drawing.Color]::Green
