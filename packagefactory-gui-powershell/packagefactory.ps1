@@ -25,7 +25,7 @@ begin {
     
     # Constants
     $FORM_WIDTH = 420
-    $FORM_HEIGHT = 400
+    $FORM_HEIGHT = 480
     $CONTROL_WIDTH = 360
     $LABEL_HEIGHT = 20
     $CONTROL_HEIGHT = 20
@@ -155,7 +155,8 @@ process {
             [string]$LabelText,
             [object]$Items,
             [int]$Top,
-            [bool]$IsComboBox = $false
+            [bool]$IsComboBox = $false,
+            [bool]$IsListBox = $false
         )
         
         # Create label
@@ -177,6 +178,24 @@ process {
                 $control.Items.AddRange($Items.Keys)
             } elseif ($Items -is [array]) {
                 $control.Items.AddRange($Items)
+            } elseif ($Items -is [PSCustomObject]) {
+                # Handle PSCustomObject from JSON conversion
+                $control.Items.AddRange($Items.PSObject.Properties.Name)
+            } else {
+                # Fallback for other object types
+                $control.Items.AddRange(($Items | Get-Member -MemberType NoteProperty).Name)
+            }
+        } elseif ($IsListBox) {
+            $control = New-Object System.Windows.Forms.ListBox
+            $control.Location = New-Object System.Drawing.Point($LEFT_MARGIN, ($Top + $LABEL_HEIGHT))
+            $control.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 120)
+            $control.SelectionMode = [System.Windows.Forms.SelectionMode]::MultiExtended
+            $control.ScrollAlwaysVisible = $true
+            
+            if ($Items -is [array]) {
+                $control.Items.AddRange($Items)
+            } elseif ($Items -is [hashtable]) {
+                $control.Items.AddRange($Items.Keys)
             } elseif ($Items -is [PSCustomObject]) {
                 # Handle PSCustomObject from JSON conversion
                 $control.Items.AddRange($Items.PSObject.Properties.Name)
@@ -370,23 +389,37 @@ process {
         
         # Main workflow controls
         $tenantComboBox = New-LabelAndControl -Form $form -LabelText 'Customer' -Items $config.Tenants -Top 70 -IsComboBox $true
-        $appComboBox = New-LabelAndControl -Form $form -LabelText 'Application' -Items $applicationList -Top 140 -IsComboBox $true
+        $appListBox = New-LabelAndControl -Form $form -LabelText 'Applications (Multi-Select: Ctrl+Click, Shift+Click)' -Items $applicationList -Top 140 -IsListBox $true
+        
+        # Create Clear All button for applications
+        $clearAllButton = New-Object System.Windows.Forms.Button
+        $clearAllButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 285)
+        $clearAllButton.Size = New-Object System.Drawing.Size(100, 25)
+        $clearAllButton.Text = 'Clear All'
+        $clearAllButton.UseVisualStyleBackColor = $true
         
         # Create main run button
         $runButton = New-Object System.Windows.Forms.Button
-        $runButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 210)
+        $runButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 320)
         $runButton.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 40)
-        $runButton.Text = 'Create Package'
+        $runButton.Text = 'Create Package(s)'
         $runButton.UseVisualStyleBackColor = $true
         
         # Create status label
         $statusLabel = New-Object System.Windows.Forms.Label
-        $statusLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 260)
+        $statusLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 370)
         $statusLabel.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 30)
         $statusLabel.Text = "Ready"
         $statusLabel.ForeColor = [System.Drawing.Color]::Green
         $statusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
         $statusLabel.Font = New-Object System.Drawing.Font("Microsoft Sans Serif", 10, [System.Drawing.FontStyle]::Bold)
+        
+        # Add Clear All button click handler
+        $clearAllButton.Add_Click({
+            $appListBox.ClearSelected()
+            $statusLabel.Text = "Selection cleared"
+            $statusLabel.ForeColor = [System.Drawing.Color]::Blue
+        })
         
         # Add button click handler
         $runButton.Add_Click({
@@ -400,8 +433,8 @@ process {
                     throw "Please select a customer"
                 }
                 
-                if (-not $appComboBox.SelectedItem) {
-                    throw "Please select an application"
+                if ($appListBox.SelectedItems.Count -eq 0) {
+                    throw "Please select at least one application"
                 }
                 
                 $selectedTenant = $tenantComboBox.SelectedItem
@@ -414,13 +447,31 @@ process {
                 # Connect to MS Intune Graph
                 Connect-ToMSIntuneGraph -TenantId $tenantId -ClientId $config.EntraApp.ClientId -ClientSecret $config.EntraApp.ClientSecret
                 
-                # Create package
-                Invoke-PackageCreation -PackageFactoryRoot $config.Paths.PackageFactoryRoot -PackagesPath $config.Paths.PackagesPath -Application $appComboBox.SelectedItem -Type $config.DefaultType -WorkingPath $config.Paths.OutputPath -Import $config.DefaultImport
+                # Create packages for each selected application
+                $selectedApps = @($appListBox.SelectedItems)
+                $totalApps = $selectedApps.Count
+                $currentApp = 0
                 
-                $statusLabel.Text = "Package created successfully"
+                foreach ($selectedApp in $selectedApps) {
+                    $currentApp++
+                    $statusLabel.Text = "Processing $currentApp of $totalApps`: $selectedApp"
+                    $statusLabel.ForeColor = [System.Drawing.Color]::Blue
+                    $form.Refresh()
+                    
+                    try {
+                        Invoke-PackageCreation -PackageFactoryRoot $config.Paths.PackageFactoryRoot -PackagesPath $config.Paths.PackagesPath -Application $selectedApp -Type $config.DefaultType -WorkingPath $config.Paths.OutputPath -Import $config.DefaultImport
+                        Write-Msg -Msg "Successfully created package for: $selectedApp"
+                    }
+                    catch {
+                        Write-Error "Failed to create package for $selectedApp`: $_"
+                        # Continue with next application instead of stopping
+                    }
+                }
+                
+                $statusLabel.Text = "All packages processed successfully"
                 $statusLabel.ForeColor = [System.Drawing.Color]::Green
                 
-                [System.Windows.Forms.MessageBox]::Show("Package created successfully!", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                [System.Windows.Forms.MessageBox]::Show("All $totalApps package(s) processed successfully!", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
             }
             catch {
                 $errorMessage = $_.Exception.Message
@@ -443,8 +494,8 @@ process {
                 
                 # Refresh application list after update
                 $applicationList = Get-ApplicationList -PackagesPath $config.Paths.PackagesPath -Type $config.DefaultType
-                $appComboBox.Items.Clear()
-                $appComboBox.Items.AddRange($applicationList)
+                $appListBox.Items.Clear()
+                $appListBox.Items.AddRange($applicationList)
                 
                 $statusLabel.Text = "Applications updated successfully"
                 $statusLabel.ForeColor = [System.Drawing.Color]::Green
@@ -489,6 +540,7 @@ process {
         $form.Controls.Add($gitPullButton)
         $form.Controls.Add($installDepsButton)
         $form.Controls.Add($separator)
+        $form.Controls.Add($clearAllButton)
         $form.Controls.Add($runButton)
         $form.Controls.Add($statusLabel)
         
