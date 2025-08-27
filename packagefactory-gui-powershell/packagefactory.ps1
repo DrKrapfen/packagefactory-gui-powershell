@@ -389,14 +389,34 @@ process {
         
         # Main workflow controls
         $tenantComboBox = New-LabelAndControl -Form $form -LabelText 'Customer' -Items $config.Tenants -Top 70 -IsComboBox $true
-        $appListBox = New-LabelAndControl -Form $form -LabelText 'Applications (Multi-Select: Ctrl+Click, Shift+Click)' -Items $applicationList -Top 140 -IsListBox $true
+        
+        # Create applications label with reduced width to make room for Clear All button
+        $appLabel = New-Object System.Windows.Forms.Label
+        $appLabel.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 140)
+        $appLabel.Size = New-Object System.Drawing.Size(260, $LABEL_HEIGHT)
+        $appLabel.Text = "Applications (Multi-Select: Ctrl+Click, Shift+Click) :"
+        $form.Controls.Add($appLabel)
+        
+        # Create applications ListBox
+        $appListBox = New-Object System.Windows.Forms.ListBox
+        $appListBox.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 160)
+        $appListBox.Size = New-Object System.Drawing.Size($CONTROL_WIDTH, 140)
+        $appListBox.SelectionMode = [System.Windows.Forms.SelectionMode]::MultiExtended
+        $appListBox.ScrollAlwaysVisible = $true
+        $appListBox.Items.AddRange($applicationList)
+        $form.Controls.Add($appListBox)
         
         # Create Clear All button for applications
         $clearAllButton = New-Object System.Windows.Forms.Button
-        $clearAllButton.Location = New-Object System.Drawing.Point($LEFT_MARGIN, 285)
+        $clearAllButton.Location = New-Object System.Drawing.Point(($LEFT_MARGIN + 260), 135)
         $clearAllButton.Size = New-Object System.Drawing.Size(100, 25)
         $clearAllButton.Text = 'Clear All'
         $clearAllButton.UseVisualStyleBackColor = $true
+        
+        # Set default selections
+        if ($tenantComboBox.Items.Count -gt 0) {
+            $tenantComboBox.SelectedIndex = 0
+        }
         
         # Create main run button
         $runButton = New-Object System.Windows.Forms.Button
