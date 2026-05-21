@@ -16,7 +16,7 @@ param(
 begin {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
-    Set-ExecutionPolicy Bypass -Scope Process -Force
+    #Set-ExecutionPolicy Bypass -Scope Process -Force
     
     # Set preferences
     $ProgressPreference = "SilentlyContinue"
