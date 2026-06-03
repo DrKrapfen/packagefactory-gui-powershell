@@ -245,21 +245,33 @@ process {
             [string]$Application,
             [string]$Type,
             [string]$WorkingPath,
-            [bool]$Import
+            [bool]$Import,
+            [string]$TenantId,
+            [string]$ClientId,
+            [string]$ClientSecret
         )
-        
+
         try {
             Set-Location -Path $PackageFactoryRoot
-            
+
             $params = @{
-                Path        = $PackagesPath
-                Application = $Application
-                Type        = $Type
-                WorkingPath = $WorkingPath
-                Import      = $Import
+                Path         = $PackagesPath
+                Application  = $Application
+                Type         = $Type
+                WorkingPath  = $WorkingPath
+                Import       = $Import
+                TenantId     = $TenantId
+                ClientId     = $ClientId
+                ClientSecret = $ClientSecret
             }
             
-            Write-Msg -Msg "Creating package with parameters: $($params | ConvertTo-Json -Compress)"
+            # Log parameters with the client secret redacted so it never lands in logs/transcripts
+            $logParams = @{}
+            foreach ($key in $params.Keys) { $logParams[$key] = $params[$key] }
+            if ($logParams.ContainsKey("ClientSecret") -and -not [string]::IsNullOrEmpty($logParams["ClientSecret"])) {
+                $logParams["ClientSecret"] = "***redacted***"
+            }
+            Write-Msg -Msg "Creating package with parameters: $($logParams | ConvertTo-Json -Compress)"
             & ".\New-Win32Package.ps1" @params
             Write-Msg -Msg "Package creation completed successfully"
         }
@@ -479,7 +491,7 @@ process {
                     $form.Refresh()
                     
                     try {
-                        Invoke-PackageCreation -PackageFactoryRoot $config.Paths.PackageFactoryRoot -PackagesPath $config.Paths.PackagesPath -Application $selectedApp -Type $config.DefaultType -WorkingPath $config.Paths.OutputPath -Import $config.DefaultImport
+                        Invoke-PackageCreation -PackageFactoryRoot $config.Paths.PackageFactoryRoot -PackagesPath $config.Paths.PackagesPath -Application $selectedApp -Type $config.DefaultType -WorkingPath $config.Paths.OutputPath -Import $config.DefaultImport -TenantId $tenantId -ClientId $config.EntraApp.ClientId -ClientSecret $config.EntraApp.ClientSecret
                         Write-Msg -Msg "Successfully created package for: $selectedApp"
                     }
                     catch {
