@@ -1,0 +1,25 @@
+# Normalize line endings. This repo is committed with LF; declaring text files here
+# stops spurious CRLF<->LF "modified" churn when the tree is checked out or edited on
+# Windows. Text files are stored as LF in the repo and checked out as LF.
+* text=auto eol=lf
+
+# Binary files: never normalize line endings
+*.exe       binary
+*.dll       binary
+*.msi       binary
+*.msix      binary
+*.msp       binary
+*.msu       binary
+*.intunewin binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.cer       binary
+*.pfx       binary
+*.zip       binary
+*.7z        binary
+*.gz        binary
+*.cab       binary
+*.lnk       binary
