@@ -14,59 +14,49 @@ PSPackageFactory** plus a home-grown **WinForms GUI** that builds Intune Win32
 | `packagefactory/scripts/Create-Win32App.ps1` | Imports a built `.intunewin` into Intune using the `App.json` (detection rules, assignments, install/uninstall commands). |
 | `packagefactory/packages/App/<Name>/App.json` | Per-app manifest (metadata, `PackageInformation`, detection rules, install command). |
 | `packagefactory/packages/App/<Name>/Source/` | Per-app source: the deploy script and any static payload. |
-| `packagefactory/PSAppDeployToolkit/Toolkit/` | **PSADT v3** toolkit injected into PSADT packages (ships `Deploy-Application.exe` + `AppDeployToolkit\`). |
+| `packagefactory/PSAppDeployToolkit/Toolkit/` | The PSADT toolkit injected into PSADT packages. **Must be a PSADT v4 release** (ships `Invoke-AppDeployToolkit.exe` + the `PSAppDeployToolkit\` module + `Config`/`Assets`/`Strings`). Binaries are downloaded fresh, not committed. |
 | `packagefactory/output/` | Working directory: `output/<Name>/Source` (staging) and `output/<Name>/Output` (the `.intunewin`). |
 | `packagefactory-gui-powershell/packagefactory.ps1` | The WinForms GUI. Lets you pick apps + tenant and runs `New-Win32Package.ps1`. |
 | `packagefactory-gui-powershell/packagefactory-config.json` | Entra app (ClientId/ClientSecret) + tenant IDs + paths. **Gitignored — never commit.** |
 
-## ⚠️ #1 gotcha: this repo uses PSAppDeployToolkit **v3**, not v4
+## PSAppDeployToolkit: this repo is **v4** (migrated from v3)
 
-Every PSADT package here is **v3** — the deploy script is `Source/Deploy-Application.ps1`
-and the manifest declares `"SetupFile": "Deploy-Application.exe"`. The bundled
-`PSAppDeployToolkit/Toolkit/` folder is also a v3 layout. There are **no v4
-(`Invoke-AppDeployToolkit.ps1`) packages** in the catalog.
+All PSADT packages here are **v4** — the deploy script is `Source/Invoke-AppDeployToolkit.ps1`
+(module-based: `Open-ADTSession` + `Install/Uninstall/Repair-ADTDeployment` functions) and the
+manifest declares `"SetupFile": "Invoke-AppDeployToolkit.exe"` with install commands like
+`Invoke-AppDeployToolkit.exe -DeploymentType Install -DeployMode Silent`.
 
-Upstream PSPackageFactory migrated to **PSADT v4**, so its `New-Win32Package.ps1`
-detects PSADT by looking only for `Invoke-AppDeployToolkit.ps1`. On this repo that
-detection **silently misses every package**, the toolkit (incl. `Deploy-Application.exe`)
-never gets copied, and packaging fails with:
+The 33 packages were migrated from PSADT **v3** (`Deploy-Application.ps1`) to **v4** — the 31
+`TSADrucker*` printer packages, `AdobeAcrobatReaderDC`, and `UninstallHPTrash`. The 31 printers
+were regenerated from `TSADruckerTemplate/Source/Invoke-AppDeployToolkit.ps1` by substituting two
+per-package tokens: the **server share** (e.g. `tsaPR-B`, used in `\\tsaps1\…` printer operations)
+and the **uppercase id** (e.g. `TSAPR-B`, used in `$adtSession.AppName` and the
+`TSAPrinter<id>.ps1.tag` detection marker). To touch all printers, edit the template and regenerate.
 
-```
-WARNUNG: Unable to detect specified setup file 'Deploy-Application.exe' in source folder ...
-Invoke-PackageCreation : Package creation failed: Intunewin package file not found
-```
+> **⚠️ The Toolkit folder must be v4.** `New-Win32Package.ps1` copies `PSAppDeployToolkit/Toolkit/*`
+> into each package at build time. It **must** contain a PSADT **v4** release (with
+> `Invoke-AppDeployToolkit.exe` and the `PSAppDeployToolkit/` module folder). If it still holds the
+> old v3 layout (`Deploy-Application.exe`), packaging fails with *"Unable to detect specified setup
+> file 'Invoke-AppDeployToolkit.exe'"*. Binaries are downloaded fresh (not committed), so after a
+> clone you must drop a v4 toolkit into `Toolkit/`.
 
-(The tell-tale earlier line is `Install.json does not exist or PSAppDeployToolkit not used` —
-that means detection fell through to the `else` branch.)
-
-**The fix (already applied):** `New-Win32Package.ps1` now also detects v3. Three spots
-handle both `Invoke-AppDeployToolkit.ps1` (v4) **and** `Deploy-Application.ps1` (v3):
-
-1. A v3 `elseif` branch that copies `Toolkit\*` (excluding `Deploy-Application.ps1`),
-   copies the package's `Deploy-Application.ps1` to the Source root, creates
-   `Files`/`SupportFiles` (`-Force`, since the v3 Toolkit already ships them), and
-   redirects `$SourcePath` to `...\Source\Files`.
-2. The package-`Source\*` copy excludes **both** entry-script names.
-3. The setup-file/source-path revert block triggers for v3 or v4: reverts `$SourcePath`
-   to the Source root and forces `$IntuneWinSetupFile = "Deploy-Application.exe"`.
-
-> **If you ever `git pull` / sync upstream, re-check these three spots** — an upstream
-> update will re-break v3 by reverting to v4-only detection. Either keep the v3 branch or
-> convert all packages + the Toolkit folder to v4 (don't half-migrate).
+The engine still contains a **dormant v3 branch** (detects `Source/Deploy-Application.ps1`) as a
+safety fallback. It is unused now that every package is v4, but don't remove it — an upstream sync
+that reverts detection would otherwise silently re-break any v3 package.
 
 ## Package types (how the engine decides what to do)
 
 Detection is by files present in the package's `Source/` (checked in this order):
 
-1. **PSADT v4** — `Source/Invoke-AppDeployToolkit.ps1` exists → inject v4 toolkit. *(none today)*
-2. **PSADT v3** — `Source/Deploy-Application.ps1` exists → inject v3 toolkit; `SetupFile` forced to `Deploy-Application.exe`. **(~33 packages)**
+1. **PSADT v4** — `Source/Invoke-AppDeployToolkit.ps1` exists → inject the v4 toolkit; `SetupFile` forced to `Invoke-AppDeployToolkit.exe`. **(33 packages)**
+2. **PSADT v3** — `Source/Deploy-Application.ps1` exists → inject a v3 toolkit; `SetupFile` forced to `Deploy-Application.exe`. **(dormant fallback — 0 packages)**
 3. **Install.json** — `Source/Install.json` exists → copy the template `Install.ps1`. **(~60 packages)**
 4. **Raw** — none of the above → package the downloaded/static installer directly (MSI/EXE/PS).
 
-Note: a v3 package may still set `SetupFile` in `App.json` to a *downloaded* installer
-(e.g. `AdobeAcrobatReaderDC`), but if `Source/Deploy-Application.ps1` is present it **is**
-a PSADT package and the real install command runs `Deploy-Application.exe`. The engine
-correctly forces `SetupFile = Deploy-Application.exe` for these.
+Note: `AdobeAcrobatReaderDC` sets `SetupFile` in `App.json` to `Invoke-AppDeployToolkit.exe` for the
+package build, but its *runtime* install reads the actual downloaded installer name from
+`Files\Install.json` and launches it via `Start-ADTProcess`. If Adobe fails, check that the
+Evergreen download and its `Install.json` land in the package's `Files\` folder.
 
 ## Packaging flow (per app)
 
@@ -100,6 +90,7 @@ correctly forces `SetupFile = Deploy-Application.exe` for these.
   Don't remove those blocks (see the comments near the `begin{}` block and the import region).
 - **Credentials:** `packagefactory-config.json` holds a live Entra client secret. It is gitignored
   and has never been committed — keep it that way. Client-secret values are redacted in the GUI log.
-- **`.gitignore` keeps `PSAppDeployToolkit/Toolkit/Deploy-Application.exe`** via an explicit `!`
-  exception (all other `*.exe` are ignored). The v3 fix depends on that file being present, so
-  don't remove the exception.
+- **Toolkit binaries are not committed** — `*.exe` (and other binaries) are gitignored, so the
+  PSADT toolkit under `PSAppDeployToolkit/Toolkit/` is downloaded fresh rather than versioned. After
+  a clone, drop a current **PSADT v4** release into `Toolkit/` before building. (A leftover v3-era
+  `!…/Deploy-Application.exe` un-ignore rule in `.gitignore` is now moot and can be removed.)
