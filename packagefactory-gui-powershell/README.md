@@ -20,7 +20,13 @@ A Windows Forms GUI application for Aaron Parker's PackageFactory tool with secu
    - `Paths.PackageFactoryRoot`: Path to PackageFactory (defaults to `..\\packagefactory`)
    - `Tenants`: Add/modify your customer tenant information
 
-3. **Run the Script**: Execute the PowerShell script to launch the GUI
+3. **PSADT v4 toolkit**: The application packages use PSAppDeployToolkit **v4**. Toolkit binaries
+   are not committed, so drop a current PSADT v4 release into
+   `..\packagefactory\PSAppDeployToolkit\Toolkit\` (it must contain `Invoke-AppDeployToolkit.exe`
+   and the `PSAppDeployToolkit\` module). Without it, packaging fails with *"Unable to detect
+   specified setup file 'Invoke-AppDeployToolkit.exe'"*.
+
+4. **Run the Script**: Execute the PowerShell script to launch the GUI
 
 ## Configuration File Structure
 
@@ -75,5 +81,7 @@ Intune Package Factory/
 
 - PowerShell 5.1 or higher
 - Windows Forms support
-- Aaron Parker's PackageFactory module
+- Aaron Parker's PackageFactory module (the `packagefactory` submodule)
+- The `Evergreen`, `VcRedist`, and `IntuneWin32App` PowerShell modules
+- A **PSADT v4** release placed in `..\packagefactory\PSAppDeployToolkit\Toolkit\` (see Setup step 3)
 - Valid EntraID application with appropriate permissions

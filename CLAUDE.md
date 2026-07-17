@@ -66,6 +66,17 @@ Evergreen download and its `Install.json` land in the package's `Files\` folder.
 `.intunewin` into `output/<Name>/Output` → if `-Import`, refresh token and call
 `Create-Win32App.ps1`.
 
+## Versioning packages
+
+`Test-IntuneWin32App` compares `App.json` → `PackageInformation.Version` against the version
+already in Intune and **skips the package if they match** (unless you pass `-Force`). So after
+changing a package, **bump `PackageInformation.Version`** or the rebuild won't supersede the
+deployed app. Keep the script's `$adtSession.AppScriptVersion` in sync with the manifest version
+(cosmetic, but tidy). Current versions after the v4 migration: printers `1.0.3`, `UninstallHPTrash`
+`1.0.2`. **Exception:** `AdobeAcrobatReaderDC`'s version tracks the actual Acrobat product version
+(`26.x`) set from the Evergreen download — don't hand-bump it; it re-deploys on its next Acrobat
+update (or `-Force`).
+
 ## How to run / debug
 
 - **GUI:** run `packagefactory-gui-powershell/packagefactory.ps1` (Windows PowerShell 5.1;
